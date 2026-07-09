@@ -1,15 +1,16 @@
 // @ts-nocheck
 import { useState, useMemo, useCallback } from "react";
-import { STATE_META, LIVE_STATES, SCAFFOLDED_STATES, REQUEST_STATE_CONTACT } from "./states.config";
+import { STATE_META, LIVE_STATES, SCAFFOLDED_STATES, REQUEST_STATE_CONTACT, BOARDS as CONFIG_BOARDS } from "./states.config";
 
-// ─── ImpactMap board data ─────────────────────────────────────────────────────
-// These boards carry impact-specific fields (actionsPerMonth, populationServed,
-// vulnerability, chairVacant) that are ImpactMap-only — they live here rather
-// than in states.config.js to keep the shared config clean.
+// ─── ImpactMap curated pilot boards ────────────────────────────────────────────
+// The original pilot states carry hand-curated impact fields (actionsPerMonth,
+// populationServed, vulnerability, chairVacant). Every OTHER live state is built
+// automatically from the shared scraper config below (see buildConfigBoards), so
+// states the scraper promotes flow into ImpactMap with zero manual work.
 // State-level metadata (colors, labels, applyUrl, applyLabel) comes from
 // STATE_META in states.config.js so the suite stays visually consistent.
 // ─────────────────────────────────────────────────────────────────────────────
-const BOARDS = [
+const PILOT_BOARDS = [
   // ── Maryland ──
   {id:1,  state:"MD",name:"Citizens Advisory Board — Regional Institute for Children & Adolescents",domain:"health",   vacantSeats:5, totalSeats:8,  vacantSince:"2023-01-15",actionsPerMonth:6, populationServed:45000,  populationLabel:"youth with behavioral health needs",          vulnerability:"critical",chairVacant:true},
   {id:2,  state:"MD",name:"Advisory Board — Developmental Disabilities Administration",            domain:"disability",vacantSeats:6, totalSeats:14, vacantSince:"2022-08-20",actionsPerMonth:4, populationServed:115000, populationLabel:"Marylanders with developmental disabilities",  vulnerability:"critical",chairVacant:false},
@@ -125,6 +126,60 @@ const BOARDS = [
   {id:1109,state:"IL",name:"Governor's Rural Affairs Council",                                  domain:"equity",   vacantSeats:5, totalSeats:15, vacantSince:"2023-07-01",actionsPerMonth:2, populationServed:2000000, populationLabel:"rural Illinoisans",                            vulnerability:"high",    chairVacant:false},
   {id:1110,state:"IL",name:"Illinois Commission on Equity and Inclusion",                       domain:"equity",   vacantSeats:4, totalSeats:14, vacantSince:"2024-03-01",actionsPerMonth:2, populationServed:3000000, populationLabel:"historically underserved Illinoisans",          vulnerability:"high",    chairVacant:false},
 ];
+
+// ─── Config-driven boards — auto-scales suite-wide ─────────────────────────────
+// Every state the scraper promotes into states.config.js flows into ImpactMap here
+// with NO manual editing. Pilot states above keep their curated figures; every
+// OTHER live state is derived from the shared, scraper-verified config.
+//
+// "Prove it" boundary: the FACTS below (board, seats, vacancy count, domain,
+// source) come verbatim from the verified config. The impact-MODEL inputs that no
+// public portal publishes are filled by disclosed, uniform rules — never invented
+// per board:
+//   • severity      → derived from the vacancy rate (+ chair-vacant), not assigned
+//   • months vacant → the source's published vacancy date if it has one, else the
+//                     date OpenQuorum FIRST verified the vacancy (an honest floor)
+//   • throughput    → a per-domain default (DOMAIN_THROUGHPUT) — a stated assumption
+//   • reach         → the board's own constituent text + statewide population as a
+//                     labeled coarse estimate (STATE_POP), pending a cited figure
+const PILOT_STATES = new Set(PILOT_BOARDS.map(b => b.state));
+
+// Approx. statewide populations (US Census), for coarse reach estimates only.
+const STATE_POP = { WA: 7700000, OR: 4200000, CA: 39000000 };
+const FALLBACK_POP = 1000000;
+
+// Disclosed default advisory throughput (actions/month) by policy domain.
+const DOMAIN_THROUGHPUT = { health: 4, education: 4, disability: 3, housing: 4, justice: 3, equity: 2, environment: 2 };
+
+const deriveVulnerability = (rate, chairVacant) =>
+  (chairVacant || rate >= 0.5) ? "critical" : rate >= 0.33 ? "high" : "moderate";
+
+function configToImpact(b) {
+  const rate = b.totalSeats ? b.vacantSeats / b.totalSeats : 0;
+  const chairVacant = /chair\s+vacant/i.test(b.criticalNote || "");
+  return {
+    id: `${b.state}-${b.id}`,                       // string id — never collides with numeric pilot ids
+    state: b.state,
+    name: b.name,
+    domain: b.domain,
+    vacantSeats: b.vacantSeats,
+    totalSeats: b.totalSeats,
+    vacantSince: b.vacantSince || b.lastVerified,   // published date, else observed-since floor
+    observed: !b.vacantSince,
+    actionsPerMonth: DOMAIN_THROUGHPUT[b.domain] || 3,
+    populationServed: STATE_POP[b.state] || FALLBACK_POP,
+    populationLabel: b.constituent || `${STATE_META[b.state]?.label || b.state} residents`,
+    vulnerability: deriveVulnerability(rate, chairVacant),
+    chairVacant,
+  };
+}
+
+// Only non-pilot live states, and only boards that actually have a vacancy.
+const configBoards = CONFIG_BOARDS
+  .filter(b => !PILOT_STATES.has(b.state) && b.vacantSeats > 0 && b.totalSeats > 0)
+  .map(configToImpact);
+
+const BOARDS = [...PILOT_BOARDS, ...configBoards];
 
 // ─── Domain styles ─────────────────────────────────────────────────────────────
 const DS = {
@@ -536,7 +591,7 @@ export default function ImpactMap() {
 
       {/* Footer */}
       <div style={{marginTop:"1.5rem",paddingTop:"1rem",borderTop:"1px solid #f0f0f0",fontSize:11,color:"#54544E",lineHeight:1.7}}>
-        Methodology: deferred actions = base throughput × vacancy-adjusted capacity reduction × months vacant. All figures are estimates. Source data: state appointment portals. Full methodology: openquorum.org
+        Methodology: deferred actions = base throughput × vacancy-adjusted capacity reduction × months vacant. Board facts — seats, vacancies, and domain — are scraper-verified from official state appointment portals. Where a portal does not publish a seat's vacancy start date, duration is measured from the date OpenQuorum first verified the vacancy, an honest lower bound that grows over time. Throughput uses disclosed per-domain defaults and severity is derived from the vacancy rate; all impact figures are estimates. Full methodology: openquorum.org
       </div>
     </div>
   );
