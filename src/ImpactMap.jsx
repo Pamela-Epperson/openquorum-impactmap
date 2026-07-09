@@ -144,9 +144,23 @@ const PILOT_BOARDS = [
 //                     labeled coarse estimate (STATE_POP), pending a cited figure
 const PILOT_STATES = new Set(PILOT_BOARDS.map(b => b.state));
 
-// Approx. statewide populations (US Census), for coarse reach estimates only.
-const STATE_POP = { WA: 7700000, OR: 4200000, CA: 39000000 };
+// Statewide populations (US Census QuickFacts, 2023 estimates). Used as the
+// reach fallback for boards without a cited figure AND as the per-state CAP on
+// total constituents affected, so aggregate reach can never exceed a state's
+// actual population.
+const STATE_POP = {
+  AL:5100000, AK:733000, AZ:7400000, AR:3000000, CA:39000000, CO:5900000,
+  CT:3600000, DE:1000000, DC:670000, FL:22600000, GA:11000000, HI:1400000,
+  ID:1900000, IL:12600000, IN:6900000, IA:3200000, KS:2900000, KY:4500000,
+  LA:4600000, ME:1400000, MD:6200000, MA:7000000, MI:10000000, MN:5700000,
+  MS:2900000, MO:6200000, MT:1100000, NE:2000000, NV:3200000, NH:1400000,
+  NJ:9300000, NM:2100000, NY:19600000, NC:10800000, ND:780000, OH:11800000,
+  OK:4000000, OR:4200000, PA:13000000, RI:1100000, SC:5400000, SD:920000,
+  TN:7100000, TX:30500000, UT:3400000, VT:650000, VA:8700000, WA:7800000,
+  WV:1800000, WI:5900000, WY:580000,
+};
 const FALLBACK_POP = 1000000;
+const statePop = code => STATE_POP[code] || FALLBACK_POP;
 
 // Disclosed default advisory throughput (actions/month) by policy domain.
 const DOMAIN_THROUGHPUT = { health: 4, education: 4, disability: 3, housing: 4, justice: 3, equity: 2, environment: 2 };
@@ -167,7 +181,7 @@ function configToImpact(b) {
     vacantSince: b.vacantSince || b.lastVerified,   // published date, else observed-since floor
     observed: !b.vacantSince,
     actionsPerMonth: DOMAIN_THROUGHPUT[b.domain] || 3,
-    populationServed: STATE_POP[b.state] || FALLBACK_POP,
+    populationServed: b.populationServed || statePop(b.state),   // cited overlay figure if present, else statewide
     populationLabel: b.constituent || `${STATE_META[b.state]?.label || b.state} residents`,
     vulnerability: deriveVulnerability(rate, chairVacant),
     chairVacant,
@@ -207,7 +221,10 @@ function calcImpact(b) {
   const rate=b.vacantSeats/b.totalSeats;
   const reduction=Math.min(rate*((rate>0.5||b.chairVacant)?1.4:1.1),0.70);
   const deferred=Math.round(b.actionsPerMonth*reduction*months);
-  const constituent=Math.max(Math.round(deferred*(b.populationServed/(b.actionsPerMonth*12))),deferred*2);
+  // Reach = the population this board serves — a present, provable fact, independent
+  // of how long the seat has been vacant. (Previously derived from `deferred`, which
+  // read 0 for newly-tracked boards even though real people are affected today.)
+  const constituent=b.populationServed;
   const score=deferred*(b.vulnerability==="critical"?3:b.vulnerability==="high"?2:1);
   return {days,months:Math.round(months),rate:Math.round(rate*100),reduction:Math.round(reduction*100),deferred,constituent,score};
 }
@@ -440,7 +457,14 @@ export default function ImpactMap() {
   },[enriched,stateFilter,domain,sortBy]);
 
   const totalDeferred    = filtered.reduce((s,b)=>s+b.impact.deferred,0);
-  const totalConstituent = filtered.reduce((s,b)=>s+b.impact.constituent,0);
+  // Reach affected = population served by boards with active vacancies, summed by
+  // state and CAPPED at each state's population (a person served by several
+  // under-staffed boards is still one person), then summed across states.
+  const totalConstituent = (() => {
+    const byState = {};
+    filtered.forEach(b => { byState[b.state] = (byState[b.state]||0) + b.impact.constituent; });
+    return Object.entries(byState).reduce((s,[st,v]) => s + Math.min(v, statePop(st)), 0);
+  })();
   const criticalCount    = filtered.filter(b=>b.vulnerability==="critical").length;
   const avgMonths        = Math.round(filtered.reduce((s,b)=>s+b.impact.months,0)/Math.max(filtered.length,1));
 
@@ -591,7 +615,7 @@ export default function ImpactMap() {
 
       {/* Footer */}
       <div style={{marginTop:"1.5rem",paddingTop:"1rem",borderTop:"1px solid #f0f0f0",fontSize:11,color:"#54544E",lineHeight:1.7}}>
-        Methodology: deferred actions = base throughput × vacancy-adjusted capacity reduction × months vacant. Board facts — seats, vacancies, and domain — are scraper-verified from official state appointment portals. Where a portal does not publish a seat's vacancy start date, duration is measured from the date OpenQuorum first verified the vacancy, an honest lower bound that grows over time. Throughput uses disclosed per-domain defaults and severity is derived from the vacancy rate; all impact figures are estimates. Full methodology: openquorum.org
+        Methodology: deferred actions = base throughput × vacancy-adjusted capacity reduction × months vacant. Board facts — seats, vacancies, and domain — are scraper-verified from official state appointment portals. Where a portal does not publish a seat's vacancy start date, duration is measured from the date OpenQuorum first verified the vacancy, an honest lower bound that grows over time. Throughput uses disclosed per-domain defaults and severity is derived from the vacancy rate. Constituents affected is the population served by boards with active vacancies, capped at each state's population so no one is double-counted. All impact figures are estimates. Full methodology: openquorum.org
       </div>
     </div>
   );
