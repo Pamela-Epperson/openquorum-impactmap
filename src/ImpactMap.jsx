@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { STATE_META, LIVE_STATES, SCAFFOLDED_STATES, REQUEST_STATE_CONTACT, BOARDS as CONFIG_BOARDS } from "./states.config";
 
 // ─── ImpactMap curated pilot boards ────────────────────────────────────────────
@@ -442,6 +442,14 @@ export default function ImpactMap() {
   // Live states only — scaffolded states have no board data yet (never fabricated)
   const stateList = useMemo(() => LIVE_STATES, []);
 
+  // Close the state menu on any click outside it or when the pointer rolls off
+  useEffect(()=>{
+    if(!showMenu) return;
+    const close=()=>setShowMenu(false);
+    document.addEventListener("click",close);
+    return ()=>document.removeEventListener("click",close);
+  },[showMenu]);
+
   const enriched=useMemo(()=>BOARDS.map(b=>({...b,impact:calcImpact(b)})),[]);
 
   const filtered=useMemo(()=>{
@@ -510,7 +518,7 @@ export default function ImpactMap() {
                   {stateFilter==="ALL"?`All ${stateList.length} states`:(STATE_META[stateFilter]?.label||stateFilter)} <span style={{fontSize:10}}>▾</span>
                 </button>
                 {showMenu&&(
-                  <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,background:"#fff",border:"1px solid #eee",borderRadius:10,minWidth:180,zIndex:200,boxShadow:"0 4px 20px rgba(0,0,0,0.12)",overflow:"hidden"}}>
+                  <div onMouseLeave={()=>setShowMenu(false)} style={{position:"absolute",top:"calc(100% + 6px)",left:0,background:"#fff",border:"1px solid #eee",borderRadius:10,minWidth:180,zIndex:200,boxShadow:"0 4px 20px rgba(0,0,0,0.12)",overflowY:"auto",maxHeight:480}}>
                     <button onClick={()=>{setStateFilter("ALL");setDomain("all");setShowMenu(false);}}
                       style={{display:"block",width:"100%",textAlign:"left",padding:"9px 14px",border:"none",background:stateFilter==="ALL"?"#E1F5EE":"transparent",color:stateFilter==="ALL"?"#0F6E56":"#333",fontSize:13,cursor:"pointer",fontWeight:stateFilter==="ALL"?600:400}}>
                       All {stateList.length} states {stateFilter==="ALL"?"✓":""}
