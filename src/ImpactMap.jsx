@@ -282,14 +282,14 @@ ${bullets}
 
 METHODOLOGY NOTE: Deferred decisions are estimated using board throughput rates, vacancy-adjusted capacity reduction, and months vacant; constituent impact figures are estimates based on served population data from state agency records.
 
-SOURCE: OpenQuorum ImpactMap — openquorum.org`;
+SOURCE: OpenQuorum ImpactMap — openquorum.us.com`;
 }
 
 // ─── Impact card modal ─────────────────────────────────────────────────────────
 function ImpactCardModal({board, impact, statement, onClose}) {
   const [copied,setCopied]=useState(false);
   const sv = STATE_META[board.state] || {label:board.state, color:"#1a1a1a", bg:"#f5f5f5"};
-  const text=`${board.name} (${sv.label})\n${impact.rate}% vacant · ${impact.months} months · ${board.vacantSeats}/${board.totalSeats} seats\n\nEst. ${impact.constituent.toLocaleString()} constituents affected · ${impact.deferred.toLocaleString()} decisions deferred\n\n${statement||""}\n\nSource: OpenQuorum ImpactMap — openquorum.org`;
+  const text=`${board.name} (${sv.label})\n${impact.rate}% vacant · ${impact.months} months · ${board.vacantSeats}/${board.totalSeats} seats\n\nEst. ${impact.constituent.toLocaleString()} constituents affected · ${impact.deferred.toLocaleString()} decisions deferred\n\n${statement||""}\n\nSource: OpenQuorum ImpactMap — openquorum.us.com`;
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}} onClick={onClose}>
       <div style={{maxWidth:460,width:"100%"}} onClick={e=>e.stopPropagation()}>
@@ -309,7 +309,7 @@ function ImpactCardModal({board, impact, statement, onClose}) {
             ))}
           </div>
           {statement&&<p style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.75,fontStyle:"italic",borderLeft:"2px solid #1D9E75",paddingLeft:12,margin:"0 0 1.25rem"}}>{statement}</p>}
-          <p style={{fontSize:11,color:"rgba(255,255,255,0.25)",margin:0}}>openquorum.org</p>
+          <p style={{fontSize:11,color:"rgba(255,255,255,0.25)",margin:0}}>openquorum.us.com</p>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button onClick={()=>{navigator.clipboard?.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),2000)}}
@@ -495,7 +495,7 @@ export default function ImpactMap() {
     setBrief(generatePressBrief(filtered,stateFilter,totalDeferred,totalConstituent,criticalCount,avgMonths));
   },[filtered,stateFilter,totalDeferred,totalConstituent,criticalCount,avgMonths]);
 
-  const summaryText = `Board vacancies in ${stateFilter==="ALL"?"the region":(STATE_META[stateFilter]?.label||stateFilter)} have stalled an estimated ${totalDeferred.toLocaleString()} decisions affecting ${totalConstituent>=1000000?`${(totalConstituent/1000000).toFixed(1)}M`:`${Math.round(totalConstituent/1000)}K`} constituents. Source: OpenQuorum ImpactMap — openquorum.org`;
+  const summaryText = `Board vacancies in ${stateFilter==="ALL"?"the region":(STATE_META[stateFilter]?.label||stateFilter)} have stalled an estimated ${totalDeferred.toLocaleString()} decisions affecting ${totalConstituent>=1000000?`${(totalConstituent/1000000).toFixed(1)}M`:`${Math.round(totalConstituent/1000)}K`} constituents. Source: OpenQuorum ImpactMap — openquorum.us.com`;
 
   return(
     <div style={{fontFamily:"system-ui,-apple-system,sans-serif",maxWidth:960,margin:"0 auto",padding:"0 0 3rem",color:"#1a1a1a"}} onClick={()=>showMenu&&setShowMenu(false)}>
@@ -623,7 +623,7 @@ export default function ImpactMap() {
 
       {/* Footer */}
       <div style={{marginTop:"1.5rem",paddingTop:"1rem",borderTop:"1px solid #f0f0f0",fontSize:11,color:"#54544E",lineHeight:1.7}}>
-        Methodology: deferred actions = base throughput × vacancy-adjusted capacity reduction × months vacant. Board facts — seats, vacancies, and domain — are scraper-verified from official state appointment portals. Where a portal does not publish a seat's vacancy start date, duration is measured from the date OpenQuorum first verified the vacancy, an honest lower bound that grows over time. Throughput uses disclosed per-domain defaults and severity is derived from the vacancy rate. Constituents affected is the population served by boards with active vacancies, capped at each state's population so no one is double-counted. All impact figures are estimates. Full methodology: openquorum.org
+        Methodology: deferred actions = base throughput × vacancy-adjusted capacity reduction × months vacant. Board facts — seats, vacancies, and domain — are scraper-verified from official state appointment portals. Where a portal does not publish a seat's vacancy start date, duration is measured from the date OpenQuorum first verified the vacancy, an honest lower bound that grows over time. Throughput uses disclosed per-domain defaults and severity is derived from the vacancy rate. Constituents affected is the population served by boards with active vacancies, capped at each state's population so no one is double-counted. All impact figures are estimates. Full methodology: openquorum.us.com
       </div>
     </div>
   );
