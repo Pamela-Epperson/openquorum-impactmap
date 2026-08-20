@@ -532,6 +532,7 @@ export default function ImpactMap() {
                         </button>
                       );
                     })}
+                    {SCAFFOLDED_STATES.length>0 && (<>
                     <p style={{margin:"4px 0 0",padding:"6px 14px 4px",fontSize:10,fontWeight:600,color:"#54544E",textTransform:"uppercase",letterSpacing:"0.08em",borderTop:"1px solid #f0f0f0"}}>Coming online — scraper in progress</p>
                     <div style={{maxHeight:150,overflowY:"auto"}}>
                       {SCAFFOLDED_STATES.map(code=>(
@@ -540,8 +541,9 @@ export default function ImpactMap() {
                         </div>
                       ))}
                     </div>
+                    </>)}
                     <div style={{padding:"8px 12px",borderTop:"1px solid #f0f0f0"}}>
-                      <a href={REQUEST_STATE_CONTACT} style={{display:"block",textAlign:"center",padding:"6px 0",border:"1px dashed #1D9E75",borderRadius:8,color:"#1D9E75",fontSize:12,fontWeight:500,textDecoration:"none"}}>+ Request priority for your state</a>
+                      <a href={REQUEST_STATE_CONTACT} target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",padding:"6px 0",border:"1px dashed #1D9E75",borderRadius:8,color:"#1D9E75",fontSize:12,fontWeight:500,textDecoration:"none"}}>Suggest a missing board →</a>
                     </div>
                   </div>
                 )}
